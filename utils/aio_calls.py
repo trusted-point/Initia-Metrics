@@ -25,22 +25,14 @@ class AioHttpCalls:
     async def __aexit__(self, exc_type, exc_value, traceback):
         await self.session.close()
     
-    async def handle_request(self, url, callback, include_latency=False):
+    async def handle_request(self, url, callback,):
         try:
-            start_time = time.time()
             async with self.session.get(url, timeout=self.timeout) as response:
-                end_time = time.time()
                 
                 if 200 <= response.status < 300:
-                    data = await callback(response.json())
-                    if include_latency:
-                        data['latency'] = round(end_time - start_time, 2)
-                    return data
-                
+                    return await callback(response.json())
                 elif response.status == 500 and '/block?height=1' in url:
-                    data = await callback(response.json())
-                    return data
-        
+                    return await callback(response.json())
                 else:
                     self.logger.debug(f"Request to {url} failed with status code {response.status}")
                     return None
