@@ -209,7 +209,7 @@ async def main(initial = True):
             validators = await check_valdiator_tomb(validators=validators, session=session)
             print('------------------------------------------------------------------------')
              
-            if config.get('start_height') is None:
+            if config.get('start_height'):
                 logger.info(f'Start height not provided. Trying to fetch lowest height on the RPC')
 
             start_height = config.get('start_height', 0)
