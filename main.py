@@ -239,9 +239,20 @@ async def main(initial = True):
                 logger.info(f"Continue indexing blocks from {metrics_data.get('latest_height')}")
                 await parse_signatures_batches(validators=validators, session=session, start_height=latest_indexed_height, batch_size=config['batch_size'])
 
+async def update_slash_info():
+    with open('metrics.json', 'r') as file:
+        metrics_data = load(file)
+        for validator in metrics_data['validators']:
+            async with AioHttpCalls(config=config, logger=logger, timeout=800) as session:
+                slashing_upd = await session.get_slashing_info_archive(valcons=validator['valcons'])
+                validator['slashing_info'] = slashing_upd
+        with open('metrics.json', 'w') as file:
+            dump(metrics_data, file)
+
+
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        asyncio.run(update_slash_info())
     except KeyboardInterrupt:
         print('\n------------------------------------------------------------------------')
         logger.info("The script was stopped")
