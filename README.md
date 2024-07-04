@@ -66,7 +66,7 @@ python3 main.py
 
 ## Additional Commands:
 ### Reset block-related metrics:
-- If you need to reset the metrics stored in metrics.json, use the following command:
+- If you need to reset the block signatures realted metrics stored in metrics.json, use the following command:
 ```py
 python3 reset_blocks_metrics.py
 ```
