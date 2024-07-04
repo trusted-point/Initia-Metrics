@@ -1,4 +1,4 @@
-<font size = 7><center><b><u>Initia Validators Metrics Parser</u></b></center></font>
+# Initia Validators Metrics Parser
 ### The Initia Metrics Parser is a Python script designed to analyze validator-related metrics from the Initia blockchain network. It fetches data from blockchain nodes via RPC and API endpoints, processes blocks within specified heights, and provides insights into validator activities and network participation.
 
 > The Initia Metrics Parser gathers the following metrics for each validator:
