@@ -143,19 +143,18 @@ async def parse_signatures_batches(validators, session: AioHttpCalls, start_heig
                 asyncio.gather(*tx_tasks)
             )
 
-            # try:
-            #     with Pool(os.cpu_count() - 5) as pool:
-            #         parsed_extensions = pool.map(process_extension, txs)
-            # except (Exception, KeyboardInterrupt) as e:
-            #     logger.error(f"Failed to process block extension. Exiting: {e}")
-            #     pool.close()
-            #     exit(1)
-
-            # parsed_extensions = [process_extension(tx for tx in txs)]
-
-            parsed_extensions = []
-            for tx in txs:
-                parsed_extensions.append(process_extension(tx))
+            if config['multiprocessing']:
+                try:
+                    with Pool(os.cpu_count() - 1) as pool:
+                        parsed_extensions = pool.map(process_extension, txs)
+                except (Exception, KeyboardInterrupt) as e:
+                    logger.error(f"Failed to process block extension. Exiting: {e}")
+                    pool.close()
+                    exit(1)
+            else:
+                parsed_extensions = []
+                for tx in txs:
+                    parsed_extensions.append(process_extension(tx))
 
             for block, valset, extension in zip(blocks, valsets, parsed_extensions):
                 if block is None or valset is None or extension is None:
