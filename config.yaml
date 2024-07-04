@@ -1,0 +1,31 @@
+# rpc: "http://3.214.224.241:26657"
+# api: "http://3.214.224.241:1317"
+# bech_32_prefix: "0g"
+# chain_id: "zgtendermint_16600-1"
+# max_number_of_valdiators_ever_in_the_active_set: 120
+# batch_size: 500
+# start_height: 1 # if not provided the script will fetch lowest available block height from the provided RPC endpoint
+# log_lvl: "INFO"
+# metrics:
+#   wallet_transactions: False
+#   delegators: False
+#   validator_creation_block: False
+#   jails_info: False
+
+
+#################
+
+rpc: "https://rpc-initia-testnet.trusted-point.com:443"
+api: "https://api-initia-testnet.trusted-point.com:443"
+bech_32_prefix: "init"
+chain_id: "initiation-1"
+max_number_of_valdiators_ever_in_the_active_set: 100
+batch_size: 30
+start_height: 1000000
+end_height: 2051430 # OPTIONAL
+log_lvl: "DEBUG"
+metrics:
+  governance_participation: True
+  delegators: True
+  validator_creation_block: True
+  jails_info: True
