@@ -74,6 +74,7 @@ async def fetch_wallet_transactions(validators, session):
         validator['governance'] = result
     return validators
 
+# IN CASE THERE ARE MORE THAN 100 VALS IN THE SET
 async def get_all_valset(session, height, max_vals):
     valset_tasks = []
     if max_vals <= 100:
@@ -120,7 +121,7 @@ async def parse_signatures_batches(validators, session: AioHttpCalls, start_heig
         exit(1)
 
     with tqdm(total=rpc_latest_height, desc="Parsing Blocks", unit="block", initial=start_height) as pbar:
-
+        
         for height in range(start_height, rpc_latest_height, batch_size):
             end_height = min(height + batch_size, rpc_latest_height)
             max_vals = config.get('max_number_of_valdiators_ever_in_the_active_set') or 125
@@ -129,7 +130,8 @@ async def parse_signatures_batches(validators, session: AioHttpCalls, start_heig
             valset_tasks = []
             tx_tasks = []
             
-            for current_height in range(start_height, end_height):
+            for current_height in range(height, end_height):
+                
                 signature_tasks.append(session.get_block_signatures(height=current_height))
                 if max_vals > 100:
                     valset_tasks.append(get_all_valset(session=session, height=current_height, max_vals=max_vals))
@@ -174,9 +176,6 @@ async def parse_signatures_batches(validators, session: AioHttpCalls, start_heig
                         else:
                             validator['total_missed_oracle_votes'] += 1
 
-            # print(end_height)
-            # print(start_height)
-            # print('----')
             metrics_data = {
                 'latest_height': end_height,
                 'validators': validators
