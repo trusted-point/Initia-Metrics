@@ -130,7 +130,6 @@ async def parse_signatures_batches(validators, session: AioHttpCalls, start_heig
             tx_tasks = []
             
             for current_height in range(start_height, end_height):
-                # print(current_height)
                 signature_tasks.append(session.get_block_signatures(height=current_height))
                 if max_vals > 100:
                     valset_tasks.append(get_all_valset(session=session, height=current_height, max_vals=max_vals))
@@ -144,13 +143,19 @@ async def parse_signatures_batches(validators, session: AioHttpCalls, start_heig
                 asyncio.gather(*tx_tasks)
             )
 
-            try:
-                with Pool(os.cpu_count() - 5) as pool:
-                    parsed_extensions = pool.map(process_extension, txs)
-            except (Exception, KeyboardInterrupt) as e:
-                logger.error(f"Failed to process block extension. Exiting: {e}")
-                pool.close()
-                exit(1)
+            # try:
+            #     with Pool(os.cpu_count() - 5) as pool:
+            #         parsed_extensions = pool.map(process_extension, txs)
+            # except (Exception, KeyboardInterrupt) as e:
+            #     logger.error(f"Failed to process block extension. Exiting: {e}")
+            #     pool.close()
+            #     exit(1)
+
+            # parsed_extensions = [process_extension(tx for tx in txs)]
+
+            parsed_extensions = []
+            for tx in txs:
+                parsed_extensions.append(process_extension(tx))
 
             for block, valset, extension in zip(blocks, valsets, parsed_extensions):
                 if block is None or valset is None or extension is None:
@@ -170,6 +175,9 @@ async def parse_signatures_batches(validators, session: AioHttpCalls, start_heig
                         else:
                             validator['total_missed_oracle_votes'] += 1
 
+            # print(end_height)
+            # print(start_height)
+            # print('----')
             metrics_data = {
                 'latest_height': end_height,
                 'validators': validators
@@ -177,7 +185,7 @@ async def parse_signatures_batches(validators, session: AioHttpCalls, start_heig
             with open('metrics.json', 'w') as file:
                 dump(metrics_data, file)
             
-            pbar.update(end_height - start_height)
+            pbar.update(end_height - height)
 
 async def main(initial = True):
     async with AioHttpCalls(config=config, logger=logger, timeout=800) as session:
