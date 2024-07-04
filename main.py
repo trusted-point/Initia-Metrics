@@ -119,64 +119,65 @@ async def parse_signatures_batches(validators, session: AioHttpCalls, start_heig
         logger.error("Failed to fetch RPC latest height. RPC is not reachable. Exiting.")
         exit(1)
 
-    with tqdm(total=rpc_latest_height, desc="Parsing Blocks", unit="block", initial=start_height) as pbar:
+    # with tqdm(total=rpc_latest_height, desc="Parsing Blocks", unit="block", initial=start_height) as pbar:
 
-        for height in range(start_height, rpc_latest_height, batch_size):
-            end_height = min(height + batch_size, rpc_latest_height)
-            max_vals = config.get('max_number_of_valdiators_ever_in_the_active_set') or 125
+    for height in range(start_height, rpc_latest_height, batch_size):
+        end_height = min(height + batch_size, rpc_latest_height)
+        max_vals = config.get('max_number_of_valdiators_ever_in_the_active_set') or 125
 
-            signature_tasks = []
-            valset_tasks = []
-            tx_tasks = []
-            
-            for current_height in range(start_height, end_height):
-                signature_tasks.append(session.get_block_signatures(height=current_height))
-                if max_vals > 100:
-                    valset_tasks.append(get_all_valset(session=session, height=current_height, max_vals=max_vals))
-                else:
-                    valset_tasks.append(session.get_valset_at_block_hex(height=current_height, page=1))
-                tx_tasks.append(session.get_extension_tx(height=current_height)) 
-            
-            blocks, valsets, txs = await asyncio.gather(
-                asyncio.gather(*signature_tasks),
-                asyncio.gather(*valset_tasks),
-                asyncio.gather(*tx_tasks)
-            )
+        signature_tasks = []
+        valset_tasks = []
+        tx_tasks = []
+        
+        for current_height in range(start_height, end_height):
+            print(current_height)
+            signature_tasks.append(session.get_block_signatures(height=current_height))
+            if max_vals > 100:
+                valset_tasks.append(get_all_valset(session=session, height=current_height, max_vals=max_vals))
+            else:
+                valset_tasks.append(session.get_valset_at_block_hex(height=current_height, page=1))
+            tx_tasks.append(session.get_extension_tx(height=current_height)) 
+        
+        blocks, valsets, txs = await asyncio.gather(
+            asyncio.gather(*signature_tasks),
+            asyncio.gather(*valset_tasks),
+            asyncio.gather(*tx_tasks)
+        )
 
-            try:
-                with Pool(os.cpu_count() - 1) as pool:
-                    parsed_extensions = pool.map(process_extension, txs)
-            except (Exception, KeyboardInterrupt) as e:
-                logger.error(f"Failed to process block extension. Exiting: {e}")
-                pool.close()
+        try:
+            with Pool(os.cpu_count() - 1) as pool:
+                parsed_extensions = pool.map(process_extension, txs)
+        except (Exception, KeyboardInterrupt) as e:
+            logger.error(f"Failed to process block extension. Exiting: {e}")
+            pool.close()
+            exit(1)
+
+        for block, valset, extension in zip(blocks, valsets, parsed_extensions):
+            if block is None or valset is None or extension is None:
+                logger.error("Failed to fetch block/valset info. Try to reduce batch size or increase start_height in config and restart. Exiting")
                 exit(1)
-    
-            for block, valset, extension in zip(blocks, valsets, parsed_extensions):
-                if block is None or valset is None or extension is None:
-                    logger.error("Failed to fetch block/valset info. Try to reduce batch size or increase start_height in config and restart. Exiting")
-                    exit(1)
 
-                for validator in validators:
-                    if validator['hex'] in valset:
-                        if validator['hex'] == block['proposer']:
-                            validator['total_proposed_blocks'] += 1
-                        if validator['hex'] in block['signatures']:
-                            validator['total_signed_blocks'] += 1
-                        else:
-                            validator['total_missed_blocks'] += 1
-                        if extension.get(validator['valcons']):
-                            validator['total_oracle_votes'] += 1
-                        else:
-                            validator['total_missed_oracle_votes'] += 1
+            for validator in validators:
+                if validator['hex'] in valset:
+                    if validator['hex'] == block['proposer']:
+                        validator['total_proposed_blocks'] += 1
+                    if validator['hex'] in block['signatures']:
+                        validator['total_signed_blocks'] += 1
+                    else:
+                        validator['total_missed_blocks'] += 1
+                    if extension.get(validator['valcons']):
+                        validator['total_oracle_votes'] += 1
+                    else:
+                        validator['total_missed_oracle_votes'] += 1
 
-            metrics_data = {
-                'latest_height': end_height,
-                'validators': validators
-            }
-            with open('metrics.json', 'w') as file:
-                dump(metrics_data, file)
+        metrics_data = {
+            'latest_height': end_height,
+            'validators': validators
+        }
+        with open('metrics.json', 'w') as file:
+            dump(metrics_data, file)
             
-            pbar.update(end_height - start_height)
+            # pbar.update(end_height - start_height)
 
 async def main(initial = True):
     async with AioHttpCalls(config=config, logger=logger, timeout=800) as session:
