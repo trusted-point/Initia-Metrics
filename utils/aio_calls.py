@@ -1,6 +1,5 @@
 import aiohttp
 import traceback
-import time
 from json import loads
 
 class AioHttpCalls:
