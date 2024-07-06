@@ -68,7 +68,7 @@ async def check_valdiator_tomb(validators, session):
         validator['tombstoned'] = result if result is not None else False
     return validators
 
-async def fetch_wallet_transactions(validators, session):
+async def fetch_governance_transactions(validators, session):
     task = [session.get_gov_votes(validator['wallet']) for validator in validators]
     results = await asyncio.gather(*task)
     for validator, result in zip(validators, results):
@@ -204,7 +204,7 @@ async def main(initial = True):
             if config['metrics']['governance_participation']:
                 print('------------------------------------------------------------------------')
                 logger.info('Fetching governance participation')
-                validators = await fetch_wallet_transactions(validators=validators, session=session)
+                validators = await fetch_governance_transactions(validators=validators, session=session)
             if config['metrics']['delegators']:
                 print('------------------------------------------------------------------------')
                 logger.info('Fetching delegators info')
