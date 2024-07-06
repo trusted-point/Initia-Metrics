@@ -1,5 +1,11 @@
+import os
 from json import load, dump
 from yaml import safe_load
+
+if not os.path.exists('metrics.json'):
+        raise FileNotFoundError(f"The file metrics.json does not exist.")
+with open('metrics.json', 'r') as f:
+    data = load(f)
 
 with open('metrics.json', 'r') as file:
     metrics_data = load(file)
