@@ -10,7 +10,6 @@ sys.path.append(proto_dir)
 from utils.proto.types_pb2 import ExtendedCommitInfo
 from utils.proto.slinky.abci.v1.vote_extensions_pb2 import OracleVoteExtension
 
-
 class ExtensionParser:
     def __init__(self, logger):
         self.logger = logger
@@ -37,5 +36,7 @@ class ExtensionParser:
         
         except zlib.error as e:
             self.logger.error(f"Zlib error processing vote: {e}")
+        except zstd.Error as e:
+            self.logger.error(f"Zstd decompress error: {e}")
         except Exception as e:
             self.logger.error(f"Error processing vote: {e}")
