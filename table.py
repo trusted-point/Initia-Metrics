@@ -1,4 +1,5 @@
 import unicodedata
+import os
 from json import load
 from tabulate import tabulate
 from emoji import demojize
@@ -10,7 +11,9 @@ def format_moniker(moniker: str, max_length: int=30):
         return moniker
     except Exception:
         return moniker
-        
+
+if not os.path.exists('metrics.json'):
+        raise FileNotFoundError(f"The file metrics.json does not exist.")
 with open('metrics.json', 'r') as f:
     data = load(f)
 
