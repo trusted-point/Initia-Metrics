@@ -34,20 +34,16 @@ class AioHttpCalls:
                     return await callback(response.json())
                 else:
                     self.logger.debug(f"Request to {url} failed with status code {response.status}")
-                    return None
                 
         except aiohttp.ClientError as e:
             self.logger.debug(f"Issue with making request to {url}: {e}")
-            return None
         
         except TimeoutError as e:
             self.logger.debug(f"Issue with making request to {url}. TimeoutError: {e}")
-            return None
 
         except Exception as e:
             self.logger.debug(f"An unexpected error occurred: {e}")
             traceback.print_exc()
-            return None
     
     async def get_latest_block_height_rpc(self) -> str:
         url = f"{self.rpc}/abci_info"
@@ -203,7 +199,7 @@ class AioHttpCalls:
 
             error_data = data.get('error')
             if error_data:
-                error_message = error_data.get('data', None)
+                error_message = error_data.get('data')
                 if error_message:
                     return int(error_message.split()[-1])
             
