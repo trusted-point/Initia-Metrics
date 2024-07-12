@@ -10,6 +10,9 @@ $(document).ready(function () {
                 validatorsToDisplay.forEach(function (validator, index) {
                     var totalActiveBlocks = validator.total_signed_blocks + validator.total_missed_blocks;
 
+                    if (totalActiveBlocks < 9000) {
+                        return;
+                    }
                     if (totalActiveBlocks > 0) {
                         var validatorUptime = (validator.total_signed_blocks / totalActiveBlocks * 100).toFixed(2);
                         var oracleUptime = (validator.total_oracle_votes / totalActiveBlocks * 100).toFixed(2);
