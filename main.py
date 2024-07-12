@@ -113,24 +113,6 @@ def process_extension(tx: str):
 
 async def parse_signatures_batches(validators, session: AioHttpCalls, start_height, end_height, metrics_file_name, batch_size):
 
-    # with tqdm(total=rpc_latest_height, desc="Parsing Blocks", unit="block", initial=start_height) as pbar:
-        
-    #     for height in range(start_height, rpc_latest_height, batch_size):
-    #         end_height = min(height + batch_size, rpc_latest_height)
-    #         max_vals = config.get('max_number_of_valdiators_ever_in_the_active_set') or 125
-
-    #         signature_tasks = []
-    #         valset_tasks = []
-    #         tx_tasks = []
-            
-    #         for current_height in range(height, end_height):
-    #             signature_tasks.append(session.get_block_signatures(height=current_height))
-    #             if max_vals > 100:
-    #                 valset_tasks.append(get_all_valset(session=session, height=current_height, max_vals=max_vals))
-    #             else:
-    #                 valset_tasks.append(session.get_valset_at_block_hex(height=current_height, page=1))
-    #             tx_tasks.append(session.get_extension_tx(height=current_height)) 
-
     with tqdm(total=end_height, desc="Parsing Blocks", unit="block", initial=start_height) as pbar:
 
         for height in range(start_height, end_height, batch_size):
