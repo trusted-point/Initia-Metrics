@@ -40,8 +40,8 @@ async def get_validators(session: AioHttpCalls):
                 filtered_valdiators.append(validator)
         return filtered_valdiators
 
-async def get_slashing_info(validators, session):
-    task = [session.get_slashing_info_archive(validator['valcons']) for validator in validators]
+async def get_slashing_info(validators, session, start_height, end_height):
+    task = [session.get_slashing_info_archive(validator['valcons'], start_height=start_height, end_height=end_height) for validator in validators]
     results = await asyncio.gather(*task)
     for validator, result in zip(validators, results):
         validator['slashing_info'] = result
@@ -111,26 +111,37 @@ def process_extension(tx: str):
     except Exception as e:
         logger.error(f"Failed to process block extension. An unexpected error occurred: {e}")
 
-async def parse_signatures_batches(validators, session: AioHttpCalls, start_height, batch_size=300):
+async def parse_signatures_batches(validators, session: AioHttpCalls, start_height, end_height, metrics_file_name, batch_size):
 
-    rpc_latest_height = await session.get_latest_block_height_rpc()
-    if config.get('end_height'):
-        rpc_latest_height = config['end_height']
-    if not rpc_latest_height:
-        logger.error("Failed to fetch RPC latest height. RPC is not reachable. Exiting.")
-        exit(1)
-
-    with tqdm(total=rpc_latest_height, desc="Parsing Blocks", unit="block", initial=start_height) as pbar:
+    # with tqdm(total=rpc_latest_height, desc="Parsing Blocks", unit="block", initial=start_height) as pbar:
         
-        for height in range(start_height, rpc_latest_height, batch_size):
-            end_height = min(height + batch_size, rpc_latest_height)
+    #     for height in range(start_height, rpc_latest_height, batch_size):
+    #         end_height = min(height + batch_size, rpc_latest_height)
+    #         max_vals = config.get('max_number_of_valdiators_ever_in_the_active_set') or 125
+
+    #         signature_tasks = []
+    #         valset_tasks = []
+    #         tx_tasks = []
+            
+    #         for current_height in range(height, end_height):
+    #             signature_tasks.append(session.get_block_signatures(height=current_height))
+    #             if max_vals > 100:
+    #                 valset_tasks.append(get_all_valset(session=session, height=current_height, max_vals=max_vals))
+    #             else:
+    #                 valset_tasks.append(session.get_valset_at_block_hex(height=current_height, page=1))
+    #             tx_tasks.append(session.get_extension_tx(height=current_height)) 
+
+    with tqdm(total=end_height, desc="Parsing Blocks", unit="block", initial=start_height) as pbar:
+
+        for height in range(start_height, end_height, batch_size):
+            inner_end_height = min(height + batch_size, end_height)
             max_vals = config.get('max_number_of_valdiators_ever_in_the_active_set') or 125
 
             signature_tasks = []
             valset_tasks = []
             tx_tasks = []
             
-            for current_height in range(height, end_height):
+            for current_height in range(height, inner_end_height):
                 signature_tasks.append(session.get_block_signatures(height=current_height))
                 if max_vals > 100:
                     valset_tasks.append(get_all_valset(session=session, height=current_height, max_vals=max_vals))
@@ -176,17 +187,45 @@ async def parse_signatures_batches(validators, session: AioHttpCalls, start_heig
                             validator['total_missed_oracle_votes'] += 1
 
             metrics_data = {
-                'latest_height': end_height,
+                'latest_height': inner_end_height,
                 'validators': validators
             }
-            with open('metrics.json', 'w') as file:
+            with open(metrics_file_name, 'w') as file:
                 dump(metrics_data, file)
             
-            pbar.update(end_height - height)
+            pbar.update(inner_end_height - height)
 
-async def main(initial = True):
+async def main():
     async with AioHttpCalls(config=config, logger=logger, timeout=800) as session:
-        if not os.path.exists('metrics.json'):
+        rpc_latest_height = await session.get_latest_block_height_rpc()
+        if not rpc_latest_height:
+            logger.error("Failed to fetch RPC latest height. RPC is not reachable. Exiting.")
+            exit(1)
+        end_height = config.get('end_height')
+        if end_height:
+            if end_height > int(rpc_latest_height):
+                end_height = int(rpc_latest_height)
+                logger.error(f"Config end_height [{config.get('end_height')}] > Latest height available on the RPC [{rpc_latest_height}]. Setting end_height: {end_height}")
+        else:
+            end_height = int(rpc_latest_height)
+            logger.error(f"end_height not provided in config.yaml. Setting end height: {end_height}")
+
+        if not os.path.exists(config.get('metrics_file_name','metrics.json')):
+            if not config.get('start_height'):
+                logger.info(f'Start height not provided. Trying to fetch lowest height on the RPC')
+
+            start_height = config.get('start_height', 1)
+            rpc_lowest_height = await session.fetch_lowest_height()
+
+            if rpc_lowest_height:
+                if rpc_lowest_height > start_height:
+                    start_height = rpc_lowest_height
+                    print('------------------------------------------------------------------------')
+                    logger.error(f"Config or default start height [{config.get('start_height', 1)}] < Lowest height available on the RPC [{rpc_lowest_height}]")
+            else:
+                logger.error(f'Failed to get lowest height available on the RPC')
+                exit(1)
+
             print('------------------------------------------------------------------------')
             logger.info('Fetching latest validators set')
             validators = await get_validators(session=session)
@@ -200,7 +239,7 @@ async def main(initial = True):
             if config['metrics']['jails_info']:
                 print('------------------------------------------------------------------------')
                 logger.info('Fetching slashing info')
-                validators = await get_slashing_info(validators=validators, session=session)
+                validators = await get_slashing_info(validators=validators, session=session, start_height=start_height, end_height=end_height)
             if config['metrics']['governance_participation']:
                 print('------------------------------------------------------------------------')
                 logger.info('Fetching governance participation')
@@ -214,33 +253,17 @@ async def main(initial = True):
             logger.info('Fetching tombstones info')
             validators = await check_valdiator_tomb(validators=validators, session=session)
             print('------------------------------------------------------------------------')
-             
-            if not config.get('start_height'):
-                logger.info(f'Start height not provided. Trying to fetch lowest height on the RPC')
-
-            start_height = config.get('start_height', 1)
-            rpc_lowest_height = await session.fetch_lowest_height()
-
-            if rpc_lowest_height:
-                if rpc_lowest_height > start_height:
-                    start_height = rpc_lowest_height
-                    print('------------------------------------------------------------------------')
-                    logger.error(f"Config or default start height [{config.get('start_height', 1)}] < Lowest height available on the RPC [{rpc_lowest_height}]")
-            else:
-                logger.error(f'Failed to check lowest height available on the RPC [{rpc_lowest_height}]')
-                exit(1)
 
             logger.info(f'Indexing blocks from the height: {start_height}')
             print('------------------------------------------------------------------------')
 
-            await parse_signatures_batches(validators=validators, session=session, start_height=start_height, batch_size=config['batch_size'])
+            await parse_signatures_batches(validators=validators, session=session, start_height=start_height, end_height=end_height, batch_size=config['batch_size'], metrics_file_name=config.get('metrics_file_name','metrics.json'))
         else:
-
-            with open('metrics.json', 'r') as file:
+            with open(config.get('metrics_file_name','metrics.json'), 'r') as file:
                 metrics_data = load(file)
                 print('------------------------------------------------------------------------')
                 logger.info(f"Continue indexing blocks from {metrics_data.get('latest_height', 1)}")
-                await parse_signatures_batches(validators=metrics_data['validators'], session=session, start_height=metrics_data.get('latest_height', 1), batch_size=config['batch_size'])
+                await parse_signatures_batches(validators=metrics_data['validators'], session=session, start_height=metrics_data['latest_height'], end_height=end_height, batch_size=config['batch_size'], metrics_file_name=config.get('metrics_file_name','metrics.json'))
 
 if __name__ == "__main__":
     try:

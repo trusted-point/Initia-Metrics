@@ -129,7 +129,7 @@ class AioHttpCalls:
         
         return await self.handle_request(url, process_response)
     
-    async def get_slashing_info_archive(self, valcons: str):
+    async def get_slashing_info_archive(self, valcons: str, start_height, end_height):
         url = f'{self.rpc}/block_search?query="slash.address%3D%27{valcons}%27"'
         
         async def process_response(response):
@@ -137,7 +137,9 @@ class AioHttpCalls:
             data = await response
             if data.get('result',{}).get('blocks'):
                 for block in data['result']['blocks']:
-                    blocks.append({'height': block.get('block',{}).get('header',{}).get('height'), 'time': block.get('block',{}).get('header',{}).get('time')})
+                    height = int(block.get('block',{}).get('header',{}).get('height', 1))
+                    if height in range(start_height, end_height+1):
+                        blocks.append({'height': height, 'time': block.get('block',{}).get('header',{}).get('time')})
                 return blocks
             
         return await self.handle_request(url, process_response)

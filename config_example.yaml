@@ -8,6 +8,7 @@ multiprocessing: true
 start_height: 800000
 end_height: 2051430
 log_lvl: "DEBUG"
+metrics_file_name: "phase-1.json" # default metrics.json
 metrics:
   governance_participation: True
   delegators: True
