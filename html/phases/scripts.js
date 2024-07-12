@@ -8,7 +8,7 @@ $(document).ready(function () {
                 // Filter validators with totalActiveBlocks less than 9000
                 var validatorsToDisplay = jsonData.validators.filter(function (validator) {
                     var totalActiveBlocks = validator.total_signed_blocks + validator.total_missed_blocks;
-                    return totalActiveBlocks >= 9000;
+                    return totalActiveBlocks >= 1000;
                 });
 
                 // Prepare tableData for DataTable
