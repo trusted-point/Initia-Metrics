@@ -173,6 +173,11 @@ $(document).ready(function () {
     }
 
     // Event listeners for buttons
+    $('.btn').on('click', function () {
+        $('.btn').removeClass('active');
+        $(this).addClass('active');
+    });
+
     $('#phase-1').on('click', function () {
         fetchDataAndUpdateTable('phase-1-1203400-1401420.json', '1203400-1401420');
     });

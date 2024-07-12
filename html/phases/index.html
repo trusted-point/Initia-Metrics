@@ -16,6 +16,10 @@
     <script src="scripts.js"></script>
     
     <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
         th, td {
             padding: 8px;
             text-align: left;
@@ -67,14 +71,62 @@
             padding: 1em;
             border-left: 4px solid #4682B4;
         }
+
+        /* Button styling */
+        .button-container {
+            margin: 20px 0;
+        }
+
+        .btn {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 12px;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .btn:hover {
+            background-color: #45a049;
+            transform: scale(1.05);
+        }
+
+        .btn:active {
+            background-color: #3e8e41;
+            transform: scale(0.95);
+        }
+
+        .btn.active {
+            background-color: #28756d;
+            transform: scale(1.05);
+        }
+
+        /* Blocks Range styling */
+        .blocks-range-container {
+            margin: 20px 0;
+            font-size: 18px;
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 2px 2px 12px rgba(0, 0, 0, 0.1);
+        }
+        .blocks-range-container span {
+            font-weight: bold;
+            color: #2F4F4F;
+        }
     </style>
 </head>
 <body>
     <div class="info-section">
         <h2>Data Parsing Information</h2>
-        <p>This page provides metrics for initial validators on the <strong>initiation-1</strong> testnet network.</p>
-        
-        <h3>Columns with Detailed Metrics</h3>
+        <p>This page provides metrics for initial validators on the <strong>initiation-1</strong> testnet network divided into 4 phases.</p>
         <p>The following columns contain clickable values for detailed metrics:</p>
         <ul>
             <li>Moniker</li>
@@ -83,15 +135,15 @@
         <p>For more information, refer to our <a href="https://github.com/trusted-point/Initia-Metrics">GitHub repository</a></p>
     </div>
 
-    <div>
-        <button id="phase-1">Phase 1</button>
-        <button id="phase-2">Phase 2</button>
-        <button id="phase-3">Phase 3</button>
-        <button id="phase-4">Phase 4</button>
+    <div class="button-container">
+        <button id="phase-1" class="btn active">Phase 1</button>
+        <button id="phase-2" class="btn">Phase 2</button>
+        <button id="phase-3" class="btn">Phase 3</button>
+        <button id="phase-4" class="btn">Phase 4</button>
     </div>
 
-    <div>
-        <p>Blocks Range: <span id="blocks-range"></span></p>
+    <div class="blocks-range-container">
+        <p>Blocks Range: <span id="blocks-range">1203400-1401420</span></p>
     </div>
 
     <table id="metrics" class="display" style="width:100%">
