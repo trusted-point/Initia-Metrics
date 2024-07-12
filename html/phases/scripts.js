@@ -5,49 +5,41 @@ $(document).ready(function () {
             dataType: 'json',
             cache: false,
             success: function (jsonData) {
-                var tableData = [];
-                var validatorsToDisplay = jsonData.validators;
-                validatorsToDisplay.forEach(function (validator, index) {
+                // Filter validators with totalActiveBlocks less than 9000
+                var validatorsToDisplay = jsonData.validators.filter(function (validator) {
                     var totalActiveBlocks = validator.total_signed_blocks + validator.total_missed_blocks;
+                    return totalActiveBlocks >= 9000;
+                });
 
-                    if (totalActiveBlocks < 9000) {
-                        return;
-                    }
-                    if (totalActiveBlocks > 0) {
-                        var validatorUptime = (validator.total_signed_blocks / totalActiveBlocks * 100).toFixed(2);
-                        var oracleUptime = (validator.total_oracle_votes / totalActiveBlocks * 100).toFixed(2);
-                    } else {
-                        var validatorUptime = 0.00;
-                        var oracleUptime = 0.00;
-                    }
-                    validatorUptime = parseFloat(validatorUptime);
-                    oracleUptime = parseFloat(oracleUptime);
+                // Prepare tableData for DataTable
+                var tableData = validatorsToDisplay.map(function (validator, index) {
+                    var totalActiveBlocks = validator.total_signed_blocks + validator.total_missed_blocks;
+                    var validatorUptime = (validator.total_signed_blocks / totalActiveBlocks * 100).toFixed(2);
+                    var oracleUptime = (validator.total_oracle_votes / totalActiveBlocks * 100).toFixed(2);
 
-                    var totalJails = validator.slashing_info ? validator.slashing_info.length : 0;
-                    var tombstoned = validator.tombstoned !== null ? validator.tombstoned ? 'True' : 'False' : 'False';
-
-                    tableData.push([
+                    return [
                         index + 1,
                         validator.moniker,
-                        validatorUptime,
+                        parseFloat(validatorUptime),
                         totalActiveBlocks,
                         validator.total_signed_blocks,
                         validator.total_missed_blocks,
                         validator.total_proposed_blocks,
-                        oracleUptime,
+                        parseFloat(oracleUptime),
                         validator.total_oracle_votes,
                         validator.total_missed_oracle_votes,
-                        totalJails,
-                        tombstoned,
+                        validator.slashing_info ? validator.slashing_info.length : 0,
+                        validator.tombstoned !== null ? validator.tombstoned ? 'True' : 'False' : 'False',
                         validator.valoper,
-                    ]);
+                    ];
                 });
 
+                // Destroy existing DataTable and create new one
                 var table = $('#metrics').DataTable({
                     data: tableData,
                     destroy: true,
                     lengthMenu: [[1000], [1000]],
-                    order: [],
+                    order: [[3, 'desc']], // Sort by Active Blocks column initially
                     rowCallback: function (row, data, index) {
                         $('td:eq(0)', row).html(index + 1);
 
@@ -74,9 +66,9 @@ $(document).ready(function () {
 
                 // Add cursor pointer class on hover for specific cells
                 var cellIndices = [1, 10];
-                $('#metrics tbody').on('mouseenter mouseleave', '> tr > td', function() {
+                $('#metrics tbody').off('mouseenter mouseleave', '> tr > td').on('mouseenter mouseleave', '> tr > td', function() {
                     var index = $(this).index(); // Get the 0-based index of the current td
-            
+                
                     // Check if the current td index is in the cellIndices array
                     if (cellIndices.includes(index)) {
                         $(this).toggleClass('cursor-pointer');
@@ -87,7 +79,7 @@ $(document).ready(function () {
                 var currentShownRow = null;
 
                 // Event listener for 'Moniker' cell to show details
-                $('#metrics tbody').on('click', 'td:nth-child(2)', function () {
+                $('#metrics tbody').off('click', 'td:nth-child(2)').on('click', 'td:nth-child(2)', function () {
                     var tr = $(this).closest('tr');
                     var row = table.row(tr);
 
@@ -123,7 +115,7 @@ $(document).ready(function () {
                 });
                 
                 // Event listener for 'Total Jails' cell
-                $('#metrics tbody').on('click', 'td:nth-child(11)', function () {
+                $('#metrics tbody').off('click', 'td:nth-child(11)').on('click', 'td:nth-child(11)', function () {
                     var tr = $(this).closest('tr');
                     var row = table.row(tr);
 
