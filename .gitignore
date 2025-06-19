@@ -1,4 +1,4 @@
 config.yaml
 metrics.json
-utils/__pycache__/*.pyc
 **/__pycache__/
+env/

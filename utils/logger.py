@@ -6,7 +6,7 @@ from utils.args import args
 def set_up_logger(log_lvl: str, log_path: str) -> logging.Logger:
     logging_config = {
         "version": 1,
-        "disable_existing_loggers": True,
+        "disable_existing_loggers": False,
         "formatters": {
             "default": {
                 # "format": "[\033[90m%(asctime)s\033[m]%(log_color)s |%(log_color)-10s%(levelname)-8s|%(reset)s \033[0m%(message)s\033[m",
@@ -61,6 +61,7 @@ def set_up_logger(log_lvl: str, log_path: str) -> logging.Logger:
 
     dictConfig(logging_config)
     logger = logging.getLogger()
+    logging.getLogger("pymongo").setLevel(logging.WARNING)
 
     return logger
 

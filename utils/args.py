@@ -14,7 +14,7 @@ def parse_args():
     )
     parser.add_argument(
         "--logs-lvl",
-        default="DEBUG",
+        default="INFO",
         type=validate_log_level,
         help="Set the logging level [DEBUG, INFO, WARNING, ERROR]",
     )

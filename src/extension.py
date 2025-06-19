@@ -12,7 +12,10 @@ from src.proto.slinky.abci.v1.vote_extensions_pb2 import OracleVoteExtension
 
 class ExtensionParser:
 
+    @staticmethod
     def parse_votes_extension(tx: str):
+        if not tx:
+            return []
         result = []
         compressed_data = base64.b64decode(tx)
         decompressed_data = zstd.decompress(compressed_data)

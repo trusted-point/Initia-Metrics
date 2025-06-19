@@ -1,31 +1,35 @@
 import aiohttp
 import traceback
 from json import loads
+from utils.logger import log
+from urllib.parse import quote
 
 class AioHttpCalls:
 
     def __init__(
                  self,
-                 config,
-                 logger,
+                 api,
+                 rpc,
                  timeout = 10
                  ):
                  
-        self.api = config['api']
-        self.rpc = config['rpc']
-        self.logger = logger
+        self.api = api
+        self.rpc = rpc
         self.timeout = timeout
         self.session = None
 
     async def __aenter__(self):
         self.session = aiohttp.ClientSession()
+        log.info("✅ Created AioHttp session")
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback):
+        log.info("🛑 AioHttp connection closed.")
         await self.session.close()
     
     async def handle_request(self, url, callback,):
         try:
+            log.debug(f"Requesting {url}")
             async with self.session.get(url, timeout=self.timeout) as response:
                 
                 if 200 <= response.status < 300:
@@ -33,27 +37,37 @@ class AioHttpCalls:
                 elif response.status == 500 and '/block?height=1' in url:
                     return await callback(response.json())
                 else:
-                    self.logger.debug(f"Request to {url} failed with status code {response.status}")
+                    log.debug(f"Request to {url} failed with status code {response.status}")
                 
         except aiohttp.ClientError as e:
-            self.logger.debug(f"Issue with making request to {url}: {e}")
+            log.debug(f"Issue with making request to {url}: {e}")
         
         except TimeoutError as e:
-            self.logger.debug(f"Issue with making request to {url}. TimeoutError: {e}")
+            log.debug(f"Issue with making request to {url}. TimeoutError: {e}")
 
         except Exception as e:
-            self.logger.debug(f"An unexpected error occurred: {e}")
+            log.debug(f"An unexpected error occurred: {e}")
             traceback.print_exc()
     
-    async def get_latest_block_height_rpc(self) -> str:
-        url = f"{self.rpc}/abci_info"
+
+    async def get_rpc_status(self):
+        url = f"{self.rpc}/status"
 
         async def process_response(response):
             data = await response
-            return int(data.get('result', {}).get('response', {}).get('last_block_height'))
-        
+            return data["result"]
+
         return await self.handle_request(url, process_response)
 
+    async def get_api_status(self):
+        url = f"{self.api}/cosmos/base/node/v1beta1/status"
+
+        async def process_response(response):
+            data = await response
+            return data
+
+        return await self.handle_request(url, process_response)
+    
     async def get_total_delegators(self, valoper: str) -> str:
         url = f"{self.api}/initia/mstaking/v1/validators/{valoper}/delegations?pagination.count_total=true"
         
@@ -84,8 +98,11 @@ class AioHttpCalls:
 
         return await self.handle_request(url, process_response)
 
-    async def get_gov_votes(self, wallet: str) -> dict:
-        url=f"{self.rpc}/tx_search?query=%22proposal_vote.voter=%27{wallet}%27%22"
+    async def get_gov_vote(self, wallet: str, proposal_id: int) -> dict:
+        # url=f"{self.rpc}/tx_search?query=%22proposal_vote.voter=%27{wallet}%27%22"
+
+
+        url=f"{{self.rpc}}/tx_search?query=%22proposal_vote.voter=%27{wallet}%27ANDproposal_vote.proposal_id=%27{proposal_id}%27%22"
         
         async def process_response(response):
             data = await response
@@ -109,27 +126,39 @@ class AioHttpCalls:
             return voted_proposals
         return await self.handle_request(url, process_response)
 
-    async def get_validators(self, status: str = None) -> list:
-        status_urls = {
-            "BOND_STATUS_BONDED": f"{self.api}/initia/mstaking/v1/validators?status=BOND_STATUS_BONDED&pagination.limit=100000",
-            "BOND_STATUS_UNBONDED": f"{self.api}/initia/mstaking/v1/validators?status=BOND_STATUS_UNBONDED&pagination.limit=100000",
-            "BOND_STATUS_UNBONDING": f"{self.api}/initia/mstaking/v1/validators?status=BOND_STATUS_UNBONDING&pagination.limit=100000",
-            None: f"{self.api}/initia/mstaking/v1/validators?&pagination.limit=100000"
-        }
-        url = status_urls.get(status, status_urls[None])
-        async def process_response(response):
-            data = await response
-            validators = []
-            for validator in data['validators']:
-                info = {'moniker': validator.get('description',{}).get('moniker'),
-                        'valoper': validator.get('operator_address'),
-                        'consensus_pubkey': validator.get('consensus_pubkey',{}).get('key')}
-                validators.append(info)
-            return validators
+    # async def get_validators(self, status: str = None, pagination_limit: int = 100, next_key: str = None) -> list:
+    #     status_urls = {
+    #         "BOND_STATUS_BONDED": f"{self.api}/initia/mstaking/v1/validators?status=BOND_STATUS_BONDED&pagination.limit={pagination_limit}",
+    #         "BOND_STATUS_UNBONDED": f"{self.api}/initia/mstaking/v1/validators?status=BOND_STATUS_UNBONDED&pagination.limit={pagination_limit}",
+    #         "BOND_STATUS_UNBONDING": f"{self.api}/initia/mstaking/v1/validators?status=BOND_STATUS_UNBONDING&pagination.limit={pagination_limit}",
+    #         None: f"{self.api}/initia/mstaking/v1/validators?&pagination.limit={pagination_limit}"
+    #     }
+    #     url = status_urls.get(status, status_urls[None])
+
+    #     async def process_response(response):
+    #         data = await response
+    #         return data
         
+    #     return await self.handle_request(url, process_response)
+
+
+    async def get_validators(self, status: str = None, pagination_limit: int = 100, next_key: str = None):
+        url = f"{self.api}/initia/mstaking/v1/validators?pagination.limit={pagination_limit}"
+
+        if status:
+            url += f"&status={quote(status)}"
+        if next_key:
+            url += f"&pagination.key={quote(next_key)}"
+
+        async def process_response(response):
+            return await response 
+
         return await self.handle_request(url, process_response)
-    
-    async def get_slashing_info_archive(self, valcons: str, start_height, end_height):
+
+
+
+
+    async def get_slashing_events(self, valcons: str, start_height, end_height):
         url = f'{self.rpc}/block_search?query="slash.address%3D%27{valcons}%27"'
         
         async def process_response(response):
@@ -138,8 +167,8 @@ class AioHttpCalls:
             if data.get('result',{}).get('blocks'):
                 for block in data['result']['blocks']:
                     height = int(block.get('block',{}).get('header',{}).get('height', 1))
-                    if height in range(start_height, end_height+1):
-                        blocks.append({'height': height, 'time': block.get('block',{}).get('header',{}).get('time')})
+                    # if height in range(start_height, end_height+1):
+                    blocks.append({'height': height, 'time': block.get('block',{}).get('header',{}).get('time')})
                 return blocks
             
         return await self.handle_request(url, process_response)
@@ -156,44 +185,33 @@ class AioHttpCalls:
         
         return await self.handle_request(url, process_response)
     
-    async def get_block_signatures(self, height):
+    async def get_block(self, height):
         url = f"{self.rpc}/commit?height={height}"
 
         async def process_response(response):
             data = await response
-            signatures = []
-        
-            for signature in data['result']['signed_header']['commit']['signatures']:
-                signatures.append(signature['validator_address'])
-            proposer = data['result']['signed_header']['header']['proposer_address']
-            
-            return {'height': height, 'signatures': signatures, 'proposer': proposer}
-
+            return data
         return await self.handle_request(url, process_response)
 
-    async def get_valset_at_block_hex(self, height, page):
+    async def get_valset_at_block(self, height, page):
         url = f"{self.rpc}/validators?height={height}&page={page}&per_page=100"
-        
+
         async def process_response(response):
             data = await response
-            valset_hex = []
-            for validator in data['result']['validators']:
-                valset_hex.append(validator['address'])
-
-            return valset_hex
+            return data
         
         return await self.handle_request(url, process_response)
 
-    async def get_extension_tx(self, height):
+    async def get_block_details(self, height):
         url = f"{self.rpc}/block?height={height}"
         
         async def process_response(response):
             data = await response
-            return data['result']['block']['data']['txs'][0]
+            return data
         
         return await self.handle_request(url, process_response)
     
-    async def fetch_lowest_height(self):
+    async def get_rpc_lowest_height(self):
         url = f"{self.rpc}/block?height=1"
 
         async def process_response(response):
