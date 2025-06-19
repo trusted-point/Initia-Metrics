@@ -357,7 +357,7 @@ BLOCKS BATCH SIZE: {self.app_blocks_batch_size}
                     log.error(f"Failed to parse block extension at block {current_height-1}\nMake sure block range {height} --> {latest_height} is available on the RPC\nOr try to reduce blocks_batch_size size in config\nExiting")
                     exit(5)
 
-                log.info(f"Block {block['height']} | Date {block['date']} | Valset {len(valset)} | Sigantures {len(block['signatures'])}")
+                log.debug(f"Block {block['height']} | Date {block['date']} | Valset {len(valset)} | Sigantures {len(block['signatures'])}")
 
                 if self.app_current_date != block['date']:
                     log.info(f"Date changed: {self.app_current_date} -> {block['date']}. Inserting stats into DB")
@@ -403,7 +403,7 @@ BLOCKS BATCH SIZE: {self.app_blocks_batch_size}
                     elif parsed_extension.get(hex) is False:
                         self.validators[hex]['missed_oracle'] += 1
                     else:
-                        log.warning(f"Missing active validator in vote extension. Ignoring... {self.validators[hex]}: {parsed_extension}")
+                        log.warning(f"Missing active validator in vote extension. Ignoring... {self.validators[hex]} ({hex}): {parsed_extension}")
 
                 self.app_current_date = block['date']
                 self.app_current_height = block['height']
