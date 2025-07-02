@@ -101,7 +101,7 @@ LOWEST BLOCK: {rpc_lowest_height}
             latest_processed_block = await self.mongo.get_latest_processed_block()
             if latest_processed_block and latest_processed_block['height'] != 0:
                 self.app_start_height = latest_processed_block['height'] + 1
-                if latest_processed_block['chain_id'] != self.chain_id:
+                if latest_processed_block['chain_id'] != self.config.chain_id:
                     log.error(f"Chain id missmatch. Expected {self.config.chain_id}, got {latest_processed_block['chain_id']}")
             else:
                 self.app_start_height = self.rpc_lowest_height
