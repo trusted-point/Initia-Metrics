@@ -63,7 +63,7 @@ class Blocks:
         self.rpc_lowest_height = int(rpc_lowest_height)
         
         if rpc_lowest_height != 1:
-            log.warning(f"Provided API node is pruned. Check {self.config.api}/block?height=1. Ignoring.")
+            log.warning(f"Provided RPC node is pruned. Check {self.config.rpc}/block?height=1. Ignoring.")
 
         log.info(f"""
 ---------------------RPC STATUS----------------------
