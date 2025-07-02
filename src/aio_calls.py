@@ -1,9 +1,8 @@
 import aiohttp
 import traceback
-from json import loads
 from utils.logger import log
 from urllib.parse import quote
-
+from typing import Literal, Optional
 class AioHttpCalls:
 
     def __init__(
@@ -84,7 +83,7 @@ class AioHttpCalls:
             data = await response
             return data.get('val_signing_info',{}).get('tombstoned', False)
 
-        return await self.handle_request(url, process_response) 
+        return await self.handle_request(url, process_response)
     
     async def get_validator_creation_block(self, valoper: str) -> dict:
         url=f"{self.rpc}/tx_search?query=%22create_validator.validator=%27{valoper}%27%22"
@@ -98,51 +97,74 @@ class AioHttpCalls:
 
         return await self.handle_request(url, process_response)
 
-    async def get_gov_vote(self, wallet: str, proposal_id: int) -> dict:
+    async def get_gov_vote_tx(self, wallet: str, proposal_id: int) -> dict:
         # url=f"{self.rpc}/tx_search?query=%22proposal_vote.voter=%27{wallet}%27%22"
 
-
-        url=f"{{self.rpc}}/tx_search?query=%22proposal_vote.voter=%27{wallet}%27ANDproposal_vote.proposal_id=%27{proposal_id}%27%22"
+        url=f"{self.rpc}/tx_search?query=%22proposal_vote.voter=%27{wallet}%27 AND proposal_vote.proposal_id=%27{proposal_id}%27%22"
         
         async def process_response(response):
             data = await response
 
-            voted_proposals = {}
-            if data.get('result',{}).get('txs', []):
-                for tx in data["result"]["txs"]:
-                    if tx["tx_result"]["code"] == 0:
-                        tx_hash = tx["hash"]
-                        for event in tx["tx_result"]["events"]:
-                            if event["type"] == "proposal_vote":
-                                attributes = {attr["key"]: attr["value"] for attr in event["attributes"]}
-                                proposal_id = int(attributes["proposal_id"])
-                                option_data = loads(attributes["option"])
-                                option = option_data[0]["option"]
-                                if proposal_id not in voted_proposals:
-                                    voted_proposals[proposal_id] = {
-                                        "option": option,
-                                        "tx_hash": tx_hash
-                                    }
-            return voted_proposals
+            # voted_proposals = {}
+            # if data.get('result',{}).get('txs', []):
+            #     for tx in data["result"]["txs"]:
+            #         if tx["tx_result"]["code"] == 0:
+            #             tx_hash = tx["hash"]
+            #             for event in tx["tx_result"]["events"]:
+            #                 if event["type"] == "proposal_vote":
+            #                     attributes = {attr["key"]: attr["value"] for attr in event["attributes"]}
+            #                     proposal_id = int(attributes["proposal_id"])
+            #                     option_data = loads(attributes["option"])
+            #                     option = option_data[0]["option"]
+            #                     if proposal_id not in voted_proposals:
+            #                         voted_proposals[proposal_id] = {
+            #                             "option": option,
+            #                             "tx_hash": tx_hash
+            #                         }
+            return data
+        return await self.handle_request(url, process_response)
+    
+
+    async def fetch_proposals(
+        self,
+        status: Optional[
+            Literal[
+                "PROPOSAL_STATUS_UNSPECIFIED",
+                "PROPOSAL_STATUS_DEPOSIT_PERIOD",
+                "PROPOSAL_STATUS_PASSED",
+                "PROPOSAL_STATUS_REJECTED",
+                "PROPOSAL_STATUS_FAILED"
+            ]
+        ] = None,        
+        pagination_limit: int = 100,
+        next_key: Optional[str] = None,
+    ) -> dict:
+
+        url = f"{self.api}/initia/gov/v1/proposals?pagination.limit={pagination_limit}"
+
+        if status:
+            url += f"&proposal_status={quote(status)}"
+        if next_key:
+            url += f"&pagination.key={quote(next_key)}"
+            
+        async def process_response(response):
+            data = await response
+            return data
+        
         return await self.handle_request(url, process_response)
 
-    # async def get_validators(self, status: str = None, pagination_limit: int = 100, next_key: str = None) -> list:
-    #     status_urls = {
-    #         "BOND_STATUS_BONDED": f"{self.api}/initia/mstaking/v1/validators?status=BOND_STATUS_BONDED&pagination.limit={pagination_limit}",
-    #         "BOND_STATUS_UNBONDED": f"{self.api}/initia/mstaking/v1/validators?status=BOND_STATUS_UNBONDED&pagination.limit={pagination_limit}",
-    #         "BOND_STATUS_UNBONDING": f"{self.api}/initia/mstaking/v1/validators?status=BOND_STATUS_UNBONDING&pagination.limit={pagination_limit}",
-    #         None: f"{self.api}/initia/mstaking/v1/validators?&pagination.limit={pagination_limit}"
-    #     }
-    #     url = status_urls.get(status, status_urls[None])
-
-    #     async def process_response(response):
-    #         data = await response
-    #         return data
-        
-    #     return await self.handle_request(url, process_response)
-
-
-    async def get_validators(self, status: str = None, pagination_limit: int = 100, next_key: str = None):
+    async def fetch_validators(
+        self,
+        status: Optional[
+            Literal[
+                "BOND_STATUS_BONDED",
+                "BOND_STATUS_UNBONDED",
+                "BOND_STATUS_UNBONDING",
+            ]
+        ] = None,
+        pagination_limit: int = 100,
+        next_key: Optional[str] = None,
+    ) -> dict:
         url = f"{self.api}/initia/mstaking/v1/validators?pagination.limit={pagination_limit}"
 
         if status:
@@ -155,21 +177,12 @@ class AioHttpCalls:
 
         return await self.handle_request(url, process_response)
 
-
-
-
-    async def get_slashing_events(self, valcons: str, start_height, end_height):
+    async def get_slashing_events(self, valcons: str) -> dict:
         url = f'{self.rpc}/block_search?query="slash.address%3D%27{valcons}%27"'
-        
+
         async def process_response(response):
-            blocks = []
             data = await response
-            if data.get('result',{}).get('blocks'):
-                for block in data['result']['blocks']:
-                    height = int(block.get('block',{}).get('header',{}).get('height', 1))
-                    # if height in range(start_height, end_height+1):
-                    blocks.append({'height': height, 'time': block.get('block',{}).get('header',{}).get('time')})
-                return blocks
+            return data
             
         return await self.handle_request(url, process_response)
     
